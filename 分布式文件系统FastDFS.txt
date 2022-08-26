@@ -1,0 +1,98 @@
+-------------------------分布式文件系统FastDFS-----------------
+一、安装FastDFS
+    1、安装c语言环境
+        yum -y install gcc
+    2、安装c函数库
+        unzip libfastcommon-master.zip
+        cd libfastcommon-master
+        ./make.sh
+        ./make.sh install
+    3、安装FastDFS
+        tar -zxvf FastDFS_v5.08.tar.gz
+        cd FastDFS
+        ./make.sh
+        ./make.sh install
+    4、配置并启动tracker服务
+        配置：
+            cp /etc/fdfs/tracker.conf.sample /etc/fdfs/tracker.conf
+            vim /etc/fdfs/tracker.conf：
+                base_path=/powershop/tracker
+            mkdir -p /powershop/tracker
+        启动：
+            service fdfs_trackerd start
+            chkconfig fdfs_trackerd on
+    5、配置并启动storage服务
+        配置：
+            cp /etc/fdfs/storage.conf.sample /etc/fdfs/storage.conf
+            vim /etc/fdfs/storage.conf：
+                base_path=/powershop/storage
+                store_path0=/powershop/storage
+                tracker_server=192.168.116.133:22122
+            mkdir -p /powershop/storage
+        启动：
+            service fdfs_storaged start
+            chkconfig fdfs_storaged on
+二、安装fastdfs-nginx-module插件
+    1、解压
+        tar -zxvf fastdfs-nginx-module_v1.16.tar.gz
+    2、修改config
+        cd fastdfs-nginx-module/src/
+        vim config：
+            :%s+/usr/local/+/usr/+g
+    3、配置fastdfs-nginx-module与FastDFS关联
+        cp /usr/upload/fastdfs-nginx-module/src/mod_fastdfs.conf /etc/fdfs/
+        vim /etc/fdfs/mod_fastdfs.conf：
+            connect_timeout=10
+            tracker_server=192.168.204.158:22122
+            url_have_group_name=true
+            store_path0=/powershop/storage
+        cd /usr/upload/FastDFS/conf/
+        cp http.conf mime.types /etc/fdfs/
+三、安装nginx
+    1、安装nginx
+        yum -y install gcc pcre pcre-devel zlib zlib-devel openssl openssl-devel
+        tar -zxvf nginx-1.10.0.tar.gz
+        cd nginx-1.10.0
+        ./configure --prefix=/usr/local/nginx --add-module=/usr/upload/fastdfs-nginx-module/src
+        make && make install
+    2、配置动静分离
+        vim /usr/local/nginx/conf/nginx.conf：
+            server{
+                listen 80;
+                server_name localhost;
+
+                location ~/group([0-9])/{
+                    ngx_fastdfs_module;
+                }
+            }
+    3、配置nginx开机自启动
+        vim /lib/systemd/system/nginx.service：
+            [Unit]
+            Description=nginx
+            After=network.target
+
+            [Service]
+            Type=forking
+            ExecStart=/usr/local/nginx/sbin/nginx
+            ExecReload=/usr/local/nginx/sbin/nginx -s reload
+            ExecStop=/usr/local/nginx/sbin/nginx -s stop
+            PrivateTmp=true
+
+            [Install]
+            WantedBy=multi-user.target
+        systemctl daemon-reload        #重新加载服务配置
+        systemctl start nginx.service  #启动服务
+        systemctl enable nginx.service #设置为开机启动
+
+
+
+
+
+
+
+
+
+
+
+
+
